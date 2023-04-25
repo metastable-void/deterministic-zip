@@ -1,4 +1,4 @@
-# deterministic-zip
+# deterministic-zip-ng
 
 Regular zip binaries and libraries often generate different zip files from the same files most often because of metadata or timestamps. Deterministic-zip guarantees to always generate the same zip file every time.
 
@@ -10,12 +10,12 @@ With deterministic-zip you are guaranteed to get the exact same file every time 
 
 ## Install
 
-`npm install deterministic-zip --save`
+`npm install deterministic-zip-ng --save`
 
 ## Zip
 
 ```javascript
-const zip = require('deterministic-zip');
+const zip = require('deterministic-zip-ng');
 
 zip('data', 'test.zip', {includes: ['./index.js', './src/**'], cwd: 'data'}, (err) => {
     console.log('Done!');
