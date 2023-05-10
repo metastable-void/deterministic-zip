@@ -191,7 +191,7 @@ class Zipfile {
 const zip = (dir, destination, options, callback) => {
 	if(callback === undefined) {
 		callback = options;
-		options = {}
+		options = {};
 	}
 	options.includes = options.includes || ['./**']
 	options.excludes = options.excludes || ['.git', 'CVS', '.svn', '.hg', '.lock-wscript', '.wafpickle-N', '*.swp', '.DS_Store', '._*', 'npm-debug.log']
@@ -199,7 +199,7 @@ const zip = (dir, destination, options, callback) => {
 	getFiles(dir, options , (err, files) => {
 		const zipfile = new Zipfile(files, destination);
 		zipfile.zip(callback);
-	})	
-}
+	});
+};
 
 module.exports = zip
