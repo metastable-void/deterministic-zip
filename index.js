@@ -86,9 +86,7 @@ const initFileCentralDirTempl = () => {
 class Zipfile {
 	constructor(files, zipfile) {
 		this.index = 0;
-		files.sort((a, b) => {
-			return a.relativePath.localeCompare(b.relativePath);
-		});
+		files.sort();
 		this.fileObjects = files;
 		this.outputStream = fs.createWriteStream(zipfile);
 		this.fileheaderTempl = initFileHeaderTempl();
