@@ -2,8 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const async = require('async');
-const DeflateCRC32Stream = require('crc32-stream').DeflateCRC32Stream;
 const minimatch = require("minimatch")
 
 const shouldInclude2 = (file, options) => {
@@ -116,7 +116,7 @@ class Zipfile {
 	_writeDataDescriptor(file, callback) {
 		const dataDescriptor = allocateBuffer(16)
 		dataDescriptor.writeInt32LE(0x08074b50, 0); //signature
-		dataDescriptor.writeUIntLE(file.checksum, 4, 4); //crc-32
+		dataDescriptor.writeUInt32LE(file.checksum, 4); //crc-32
 		dataDescriptor.writeInt32LE(file.compressedSize, 8); //compressed size
 		dataDescriptor.writeInt32LE(file.uncompressedSize, 12); //uncompressed size
 		this._write(dataDescriptor, callback);
@@ -129,15 +129,27 @@ class Zipfile {
 			this._writeFileHeader(file, (err) => {
 				if(err) return callback(err);
 				const readStream = fs.createReadStream(file.absolutePath);
-				const checksum = new DeflateCRC32Stream();
-				checksum.on('end', () => {
-					file.checksum = checksum.digest();
-					file.uncompressedSize = checksum.size();
-					file.compressedSize = checksum.size(true);
-					this.index += checksum.size(true); //add uncompressed size to index
+				const deflate = zlib.createDeflateRaw();
+				// Count from the streams' data events. Overriding write() on the deflate stream, as crc32-stream
+				// does, misses chunks on Node.js 26, which wrote wrong sizes and CRCs for files over 64 KiB.
+				let checksum = 0;
+				let uncompressedSize = 0;
+				let compressedSize = 0;
+				readStream.on('data', (chunk) => {
+					checksum = zlib.crc32(chunk, checksum);
+					uncompressedSize += chunk.length;
+				});
+				deflate.on('data', (chunk) => {
+					compressedSize += chunk.length;
+				});
+				deflate.on('end', () => {
+					file.checksum = checksum;
+					file.uncompressedSize = uncompressedSize;
+					file.compressedSize = compressedSize;
+					this.index += compressedSize;
 					this._writeDataDescriptor(file, callback)
 				})
-				readStream.pipe(checksum).pipe(this.outputStream, {end: false});
+				readStream.pipe(deflate).pipe(this.outputStream, {end: false});
 			})
 		} else {
 			return callback()
@@ -150,7 +162,7 @@ class Zipfile {
 		} else {
 			const directoryTempl = this.fileCentralDirTempl;
 			const filenameBuffer = fromBuffer(file.relativePath)
-			directoryTempl.writeUIntLE(parseInt(file.checksum.toString('hex'), 16), 16, 4); //crc-32
+			directoryTempl.writeUInt32LE(file.checksum, 16); //crc-32
 			directoryTempl.writeInt32LE(file.compressedSize, 20); //compressedSize
 			directoryTempl.writeInt32LE(file.uncompressedSize, 24); //uncompressedSize
 			directoryTempl.writeInt16LE(filenameBuffer.length, 28); //filename length
